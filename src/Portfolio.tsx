@@ -3,7 +3,7 @@ import { ArrowUp } from "lucide-react";
 
 // Importações dos dados e tipos
 import { SKILLS_DATA, EXPERIENCES_DATA, CODE_SNIPPETS, HEADER_TEXTS, NAVIGATION_SECTIONS } from './data';
-import { VisibilityState } from './types'; // 
+import { VisibilityState } from './types';
 
 // Importações dos componentes
 import Navigation from './components/Navigation/Navigation';
@@ -11,10 +11,11 @@ import Hero from './components/Hero/Hero';
 import About from './components/About/About';
 import ExperienceComponent from './components/Experience/Experience';
 import SkillsComponent from './components/Skills/Skills';
+import Projects from './components/Projects/Projects'; // ← NOVO
 import Education from './components/Education/Education';
 import Contact from './components/Contact/Contact';
 import Footer from './components/Footer/Footer';
-import GlobalMouseEffect from './components/GlobalMouseEffect'; // 
+import GlobalMouseEffect from './components/GlobalMouseEffect';
 
 /**
  * Componente principal do portfólio
@@ -62,7 +63,6 @@ useEffect(() => {
 
   return () => clearInterval(typeInterval);
 }, [headerIndex]);
-
 /**
  * Effect para animação de digitação do código
  */
@@ -265,6 +265,12 @@ return (
       skills={SKILLS_DATA}
       skillsAnimated={skillsAnimated}
       isVisible={isVisible.skills || false}
+    />
+
+    {/* ✅ PROJECTS SECTION - ADICIONADO AQUI */}
+    <Projects
+      darkMode={darkMode}
+      isVisible={isVisible.projects || false}
     />
 
     {/* Education Section */}

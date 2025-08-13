@@ -34,6 +34,31 @@ export interface Experience {
 }
 
 // ============================================================================
+// PROJECT TYPES - NOVO
+// ============================================================================
+
+export interface Project {
+  id: number;
+  title: string;
+  description: string;
+  longDescription: string;
+  technologies: string[];
+  image: string;
+  liveUrl: string;
+   isPrivateRepo?: boolean;
+  githubUrl?: string;
+  features: string[];
+  category: string;
+  status: 'live' | 'in-progress' | 'planning';
+  year: string;
+}
+
+export interface ProjectsProps {
+  darkMode: boolean;
+  isVisible: boolean;
+}
+
+// ============================================================================
 // VISIBILITY STATE
 // ============================================================================
 

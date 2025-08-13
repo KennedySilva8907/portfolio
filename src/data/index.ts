@@ -52,6 +52,7 @@ export const NAVIGATION_SECTIONS = [
   "about", 
   "experience",
   "skills",
+  "projects", // ← ADICIONADO
   "education",
   "contact",
 ] as const;
