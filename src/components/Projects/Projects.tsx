@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
 ChevronLeft, ChevronRight, ExternalLink, Github, Globe, Zap, Star, Brain,
 Utensils, Sparkles, Eye, EyeOff, Lock
@@ -27,22 +27,8 @@ isVisible: boolean;
 
 const Projects: React.FC<ProjectsProps> = ({ darkMode, isVisible }) => {
 const [currentProject, setCurrentProject] = useState(0);
-const [previewLoaded, setPreviewLoaded] = useState<{ [key: number]: boolean }>({});
 const [showPreview, setShowPreview] = useState<{ [key: number]: boolean }>({});
-
-// Estados para controle de swipe melhorados
-const [touchStartX, setTouchStartX] = useState<number | null>(null);
-const [touchStartY, setTouchStartY] = useState<number | null>(null);
-const [isDragging, setIsDragging] = useState(false);
-const [dragOffset, setDragOffset] = useState(0);
-const [isTransitioning, setIsTransitioning] = useState(false);
-
-const containerRef = useRef<HTMLDivElement>(null);
-const slidesRef = useRef<HTMLDivElement>(null);
-
-// Configurações de swipe
-const minSwipeDistance = 80;
-const maxVerticalDistance = 100;
+const [touchStart, setTouchStart] = useState<number | null>(null);
 
 const projects: Project[] = [
   {
@@ -87,109 +73,46 @@ const projects: Project[] = [
   }
 ];
 
-// Função para mudar projeto com animação suave
-const changeProject = (newIndex: number) => {
-  if (isTransitioning || newIndex === currentProject) return;
-  
-  setIsTransitioning(true);
-  setCurrentProject(newIndex);
-  
-  setTimeout(() => {
-    setIsTransitioning(false);
-  }, 300);
-};
-
 const nextProject = () => {
-  const nextIndex = (currentProject + 1) % projects.length;
-  changeProject(nextIndex);
+  setCurrentProject((prev) => (prev + 1) % projects.length);
 };
 
 const prevProject = () => {
-  const prevIndex = (currentProject - 1 + projects.length) % projects.length;
-  changeProject(prevIndex);
+  setCurrentProject((prev) => (prev - 1 + projects.length) % projects.length);
 };
 
-// Handlers de touch otimizados
+const goToProject = (index: number) => {
+  setCurrentProject(index);
+};
+
+// Touch handlers simples
 const handleTouchStart = (e: React.TouchEvent) => {
-  if (isTransitioning) return;
-  
-  const touch = e.touches[0];
-  setTouchStartX(touch.clientX);
-  setTouchStartY(touch.clientY);
-  setIsDragging(true);
-  setDragOffset(0);
-  
-  // Previne scroll durante o drag
-  e.preventDefault();
-};
-
-const handleTouchMove = (e: React.TouchEvent) => {
-  if (!isDragging || touchStartX === null || touchStartY === null || isTransitioning) return;
-  
-  const touch = e.touches[0];
-  const deltaX = touch.clientX - touchStartX;
-  const deltaY = touch.clientY - touchStartY;
-  
-  // Se o movimento vertical for maior que horizontal, não é um swipe horizontal
-  if (Math.abs(deltaY) > Math.abs(deltaX) || Math.abs(deltaY) > maxVerticalDistance) {
-    setIsDragging(false);
-    setDragOffset(0);
-    return;
-  }
-  
-  // Limita o drag offset
-  const maxOffset = window.innerWidth * 0.3;
-  const limitedOffset = Math.max(-maxOffset, Math.min(maxOffset, deltaX));
-  setDragOffset(limitedOffset);
-  
-  // Previne scroll
-  e.preventDefault();
+  setTouchStart(e.touches[0].clientX);
 };
 
 const handleTouchEnd = (e: React.TouchEvent) => {
-  if (!isDragging || touchStartX === null || isTransitioning) {
-    setIsDragging(false);
-    setDragOffset(0);
-    return;
-  }
+  if (!touchStart) return;
   
-  const touch = e.changedTouches[0];
-  const deltaX = touch.clientX - touchStartX;
-  const deltaY = touchStartY !== null ? touch.clientY - touchStartY : 0;
-  
-  // Verifica se é um swipe válido
-  const isValidSwipe = Math.abs(deltaX) > minSwipeDistance && 
-                      Math.abs(deltaY) < maxVerticalDistance &&
-                      Math.abs(deltaX) > Math.abs(deltaY);
-  
-  if (isValidSwipe && projects.length > 1) {
-    if (deltaX > 0) {
-      // Swipe para direita - projeto anterior
-      prevProject();
-    } else {
-      // Swipe para esquerda - próximo projeto
+  const touchEnd = e.changedTouches[0].clientX;
+  const diff = touchStart - touchEnd;
+
+  if (Math.abs(diff) > 50) { // Mínimo 50px para ser considerado swipe
+    if (diff > 0) {
+      // Swipe left - próximo projeto
       nextProject();
+    } else {
+      // Swipe right - projeto anterior
+      prevProject();
     }
   }
   
-  // Reset dos estados
-  setIsDragging(false);
-  setDragOffset(0);
-  setTouchStartX(null);
-  setTouchStartY(null);
+  setTouchStart(null);
 };
 
 const togglePreview = (projectId: number) => {
   setShowPreview(prev => ({
     ...prev,
     [projectId]: !prev[projectId]
-  }));
-};
-
-const handlePreviewLoad = (projectId: number) => {
-  setPreviewLoaded(prev => ({
-    ...prev,
-    [projectId]: true
   }));
 };
 
@@ -205,11 +128,10 @@ const handleGithubClick = (project: Project) => {
 
 const renderProjectPreview = (project: Project) => {
   const isPreviewVisible = showPreview[project.id];
-  const isLoaded = previewLoaded[project.id];
   
   if (project.liveUrl === '#') {
     return (
-      <div className="relative w-full h-full flex items-center justify-center select-none">
+      <div className="relative w-full h-full flex items-center justify-center">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 via-purple-400/20 to-pink-400/20"></div>
         <div className="relative z-10 text-center">
           <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-2xl">
@@ -219,11 +141,7 @@ const renderProjectPreview = (project: Project) => {
           <p className="text-blue-200 mb-4">Innovative Project</p>
           <div className="flex justify-center gap-2">
             {['⚡', '🚀', '💡', '🎯', '✨'].map((emoji, i) => (
-              <span 
-                key={i} 
-                className="text-2xl animate-pulse" 
-                style={{ animationDelay: `${i * 0.3}s` }}
-              >
+              <span key={i} className="text-2xl animate-pulse" style={{ animationDelay: `${i * 0.3}s` }}>
                 {emoji}
               </span>
             ))}
@@ -241,7 +159,7 @@ const renderProjectPreview = (project: Project) => {
           darkMode 
             ? 'bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-600' 
             : 'bg-white/90 hover:bg-gray-50 text-gray-900 border border-gray-200'
-        } backdrop-blur-sm shadow-lg hover:scale-105 active:scale-95`}
+        } backdrop-blur-sm shadow-lg hover:scale-105`}
       >
         {isPreviewVisible ? (
           <>
@@ -258,32 +176,17 @@ const renderProjectPreview = (project: Project) => {
 
       {isPreviewVisible ? (
         <div className="relative w-full h-full">
-          {!isLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-500/20 to-purple-500/20 z-30">
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-white font-medium">Loading preview...</p>
-              </div>
-            </div>
-          )}
-
           <iframe
             src={project.liveUrl}
             className="absolute inset-0 w-full h-full rounded-lg border-0"
             title={`Preview of ${project.title}`}
-            onLoad={() => handlePreviewLoad(project.id)}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
-            style={{
-              opacity: isLoaded ? 1 : 0,
-              transition: 'opacity 0.5s ease-in-out'
-            }}
           />
-
           <div className="absolute inset-0 bg-transparent hover:bg-blue-500/5 transition-all duration-300 flex items-center justify-center opacity-0 hover:opacity-100 z-20 pointer-events-none">
             <button
               type="button"
               onClick={() => window.open(project.liveUrl, '_blank')}
-              className="pointer-events-auto bg-blue-500/90 text-white px-6 py-3 rounded-full font-medium flex items-center gap-2 transform scale-90 hover:scale-100 active:scale-95 transition-transform duration-300 shadow-lg"
+              className="pointer-events-auto bg-blue-500/90 text-white px-6 py-3 rounded-full font-medium flex items-center gap-2 transform scale-90 hover:scale-100 transition-transform duration-300 shadow-lg"
             >
               <ExternalLink className="w-5 h-5" />
               Open Site
@@ -291,7 +194,7 @@ const renderProjectPreview = (project: Project) => {
           </div>
         </div>
       ) : (
-        <div className="relative w-full h-full flex items-center justify-center select-none">
+        <div className="relative w-full h-full flex items-center justify-center">
           <div className="absolute inset-0 bg-gradient-to-br from-orange-400/20 via-red-400/20 to-yellow-400/20"></div>
           <div className="relative z-10 text-center">
             <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-2xl">
@@ -305,11 +208,7 @@ const renderProjectPreview = (project: Project) => {
             </div>
             <div className="flex justify-center gap-2">
               {['🍳', '📚', '🔪', '🗓️', '👨‍🍳'].map((emoji, i) => (
-                <span 
-                  key={i} 
-                  className="text-2xl animate-bounce" 
-                  style={{ animationDelay: `${i * 0.2}s` }}
-                >
+                <span key={i} className="text-2xl animate-bounce" style={{ animationDelay: `${i * 0.2}s` }}>
                   {emoji}
                 </span>
               ))}
@@ -385,7 +284,7 @@ const renderProjectContent = (project: Project) => (
         href={project.liveUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className={`flex-1 px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 active:scale-95 font-medium flex items-center justify-center gap-3 shadow-lg ${
+        className={`flex-1 px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 font-medium flex items-center justify-center gap-3 shadow-lg ${
           project.liveUrl === '#' 
             ? 'bg-gray-400 cursor-not-allowed text-white'
             : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
@@ -402,7 +301,7 @@ const renderProjectContent = (project: Project) => (
       
       <button
         onClick={() => handleGithubClick(project)}
-        className={`flex-1 flex items-center justify-center gap-3 px-6 py-3 rounded-xl border-2 transition-all duration-300 transform hover:scale-105 active:scale-95 font-medium shadow-lg ${
+        className={`flex-1 flex items-center justify-center gap-3 px-6 py-3 rounded-xl border-2 transition-all duration-300 transform hover:scale-105 font-medium shadow-lg ${
           project.isPrivateRepo
             ? darkMode
               ? 'border-amber-600 text-amber-400 hover:bg-amber-900/20'
@@ -442,135 +341,134 @@ const renderProjectContent = (project: Project) => (
   </div>
 );
 
-return (
-  <section
-    id="projects"
-    className={`py-20 px-4 sm:px-6 lg:px-8 transition-all duration-1000 ${
-      isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-    }`}
-  >
-    <div className="max-w-7xl mx-auto">
-      <div className="text-center mb-16">
-        <h2 className="text-4xl md:text-5xl font-bold mb-6">
-          <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-            My Projects
-          </span>
-        </h2>
-        <p className={`text-lg md:text-xl max-w-3xl mx-auto leading-relaxed ${
-          darkMode ? 'text-gray-300' : 'text-gray-600'
-        }`}>
-          Discover some of the projects I've developed, from innovative web applications
-          to artificial intelligence solutions.
-        </p>
-        {projects.length > 1 && (
-          <p className={`text-sm mt-4 md:hidden ${
-            darkMode ? 'text-gray-400' : 'text-gray-500'
-          }`}>
-            👆 Swipe left or right to navigate between projects
-          </p>
-        )}
-      </div>
-      
-      <div 
-        ref={containerRef}
-        className="relative overflow-hidden touch-pan-y"
-      >
-        {/* Container dos slides */}
-        <div 
-          ref={slidesRef}
-          className="flex transition-transform duration-300 ease-out"
-          style={{ 
-            transform: `translateX(calc(-${currentProject * 100}% + ${isDragging ? dragOffset : 0}px))`,
-            width: `${projects.length * 100}%`
-          }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          {projects.map((project) => (
-            <div
-              key={project.id}
-              className="w-full flex-shrink-0 px-2"
-              style={{ width: `${100 / projects.length}%` }}
-            >
-              <div className={`rounded-3xl overflow-hidden shadow-2xl border ${
-                darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
-              } ${isDragging ? 'select-none' : ''}`}>
-                <div className="grid lg:grid-cols-2 gap-0">
-                  {/* Área de Preview */}
-                  <div className="relative h-80 sm:h-96 lg:h-auto lg:min-h-[600px] overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 z-10 pointer-events-none"></div>
-                    <div className={`w-full h-full ${
-                      darkMode ? 'bg-gradient-to-br from-slate-700 to-slate-800' : 'bg-gradient-to-br from-gray-100 to-gray-200'
-                    }`}>
-                      {renderProjectPreview(project)}
-                    </div>
-                  </div>
+const currentProjectData = projects[currentProject];
 
-                  {/* Área de Conteúdo */}
-                  {renderProjectContent(project)}
+return (
+  <>
+    <style>
+      {`
+        .project-slide-enter {
+          opacity: 0;
+          transform: translateY(20px);
+          animation: fadeInSlide 0.5s ease-out forwards;
+        }
+        
+        @keyframes fadeInSlide {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}
+    </style>
+    
+    <section
+      id="projects"
+      className={`py-20 px-4 sm:px-6 lg:px-8 transition-all duration-1000 ${
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+              My Projects
+            </span>
+          </h2>
+          <p className={`text-lg md:text-xl max-w-3xl mx-auto leading-relaxed ${
+            darkMode ? 'text-gray-300' : 'text-gray-600'
+          }`}>
+            Discover some of the projects I've developed, from innovative web applications
+            to artificial intelligence solutions.
+          </p>
+          {projects.length > 1 && (
+            <p className={`text-sm mt-4 md:hidden ${
+              darkMode ? 'text-gray-400' : 'text-gray-500'
+            }`}>
+              👆 Swipe left or right to navigate between projects
+            </p>
+          )}
+        </div>
+        
+        <div className="relative">
+          {/* Projeto Atual com Touch */}
+          <div 
+            key={currentProject}
+            className={`project-slide-enter rounded-3xl overflow-hidden shadow-2xl border transition-all duration-500 ease-in-out transform ${
+              darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
+            }`}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="grid lg:grid-cols-2 gap-0">
+              {/* Área de Preview */}
+              <div className="relative h-80 sm:h-96 lg:h-auto lg:min-h-[600px] overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 z-10 pointer-events-none"></div>
+                <div className={`w-full h-full ${
+                  darkMode ? 'bg-gradient-to-br from-slate-700 to-slate-800' : 'bg-gradient-to-br from-gray-100 to-gray-200'
+                }`}>
+                  {renderProjectPreview(currentProjectData)}
                 </div>
               </div>
+
+              {/* Área de Conteúdo */}
+              {renderProjectContent(currentProjectData)}
             </div>
-          ))}
+          </div>
+
+          {/* Setas APENAS para Desktop (md e acima) */}
+          {projects.length > 1 && (
+            <>
+              <button
+                onClick={prevProject}
+                className={`hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full items-center justify-center transition-all duration-300 hover:scale-110 z-50 ${
+                  darkMode 
+                    ? 'bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-600' 
+                    : 'bg-white/90 hover:bg-gray-50 text-gray-900 border border-gray-200'
+                } backdrop-blur-sm shadow-lg`}
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              
+              <button
+                onClick={nextProject}
+                className={`hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full items-center justify-center transition-all duration-300 hover:scale-110 z-50 ${
+                  darkMode 
+                    ? 'bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-600' 
+                    : 'bg-white/90 hover:bg-gray-50 text-gray-900 border border-gray-200'
+                } backdrop-blur-sm shadow-lg`}
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </>
+          )}
         </div>
 
-        {/* Setas de navegação - APENAS EM DESKTOP */}
+        {/* Indicadores */}
         {projects.length > 1 && (
-          <>
-            <button
-              onClick={prevProject}
-              disabled={isTransitioning}
-              className={`hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 z-50 ${
-                darkMode 
-                  ? 'bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-600' 
-                  : 'bg-white/90 hover:bg-gray-50 text-gray-900 border border-gray-200'
-              } backdrop-blur-sm shadow-lg ${
-                isTransitioning ? 'opacity-50 cursor-not-allowed' : 'opacity-100'
-              }`}
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <button
-              onClick={nextProject}
-              disabled={isTransitioning}
-              className={`hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 z-50 ${
-                darkMode 
-                  ? 'bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-600' 
-                  : 'bg-white/90 hover:bg-gray-50 text-gray-900 border border-gray-200'
-              } backdrop-blur-sm shadow-lg ${
-                isTransitioning ? 'opacity-50 cursor-not-allowed' : 'opacity-100'
-              }`}
-            >
-              <ChevronRight className="w-6 h-6" />
-            </button>
-          </>
+          <div className="flex justify-center mt-8 gap-3">
+            {projects.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToProject(index)}
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  index === currentProject
+                    ? 'bg-blue-500 scale-125 shadow-lg shadow-blue-500/50'
+                    : darkMode
+                    ? 'bg-slate-600 hover:bg-slate-500'
+                    : 'bg-gray-300 hover:bg-gray-400'
+                }`}
+              />
+            ))}
+          </div>
         )}
       </div>
-
-      {/* Indicadores de projeto */}
-      {projects.length > 1 && (
-        <div className="flex justify-center mt-8 gap-3">
-          {projects.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => changeProject(index)}
-              disabled={isTransitioning}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                index === currentProject
-                  ? 'bg-blue-500 scale-125 shadow-lg shadow-blue-500/50'
-                  : darkMode
-                  ? 'bg-slate-600 hover:bg-slate-500'
-                  : 'bg-gray-300 hover:bg-gray-400'
-              } ${
-                isTransitioning ? 'cursor-not-allowed opacity-50' : ''
-              }`}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  </section>
+    </section>
+  </>
 );
 };
 
